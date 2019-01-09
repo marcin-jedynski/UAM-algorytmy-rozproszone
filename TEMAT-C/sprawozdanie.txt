@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sprawozdanie PUBLIC "sprawozdanie" "http://mhanckow.vm.wmi.amu.edu.pl:20002/zajecia/file-storage/view/sprawozdanie.dtd">
+<sprawozdanie przedmiot="ALR" temat="C">
+<imie_nazwisko>Marcin Jedynski</imie_nazwisko>
+<nr_indeksu>416084</nr_indeksu>
+<liczba_pkt> ???? </liczba_pkt>
+<zadanie nr="41a" pkt="1"></zadanie>
+<zadanie nr="41b" pkt="1"></zadanie>
+</sprawozdanie>
+
+
+Zadanie 1 -------------------------------------
+
+Klient (w jezyku Ruby):
+
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'ffi-rzmq'
+
+context = ZMQ::Context.new(1)
+
+response = ''
+requester = context.socket(ZMQ::REQ)
+requester.connect("tcp://localhost:5555")
+
+subscriber = context.socket(ZMQ::SUB)
+subscriber.connect("tcp://localhost:5556")
+
+sender = context.socket(ZMQ::PUSH)
+sender.connect("tcp://localhost:5558")
+
+requester.send_string("request filter")
+requester.recv_string(response)
+subscriber.setsockopt(ZMQ::SUBSCRIBE, response)
+sender.send_string('ready')
+
+subscriber.recv_string(response)
+
+puts response
+
+
+Serwer (w jezyku Ruby):
+
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'ffi-rzmq'
+
+message = "ala ma kota"
+filter = 'test'
+request=''
+
+context = ZMQ::Context.new(1)
+
+
+socket = context.socket(ZMQ::REP)
+socket.bind("tcp://*:5555")
+
+receiver = context.socket(ZMQ::PULL)
+receiver.bind("tcp://*:5558")
+
+publisher = context.socket(ZMQ::PUB)
+publisher.bind("tcp://*:5556")
+
+socket.recv_string(request)
+if request == 'request filter'
+    socket.send_string(filter)
+end
+
+receiver.recv_string(request)
+if request == 'ready'
+    publisher.send_string(filter +' '+message)
+end
+
+/// wydruk
+
+PL-MAC-C02XR105JHD2:a mj$ ./client.rb
+test ala ma kota
+
+PL-MAC-C02XR105JHD2:a mj$ ./server.rb
+
+
+Zadanie 41b -------------------------------------
+
+Klient (w jezyku C):
+
+// Compilation (requires zhelpers.h file available at https://github.com/booksbyus/zguide/blob/master/examples/C/zhelpers.h):
+//  clang -Wall client.c -o client -lzmq
+#include <zmq.h>
+#include "zhelpers.h"
+
+int main (void)
+{
+    char *ping;
+    char *string;
+    void *context = zmq_ctx_new ();
+    void *requester = zmq_socket (context, ZMQ_REQ);
+    printf ("Connecting to hello world server...\n");
+
+    zmq_connect (requester, "tcp://localhost:5555");
+    printf ("Sending Ping...\n");
+    zmq_send (requester, "ping", 4, 0);
+    string = s_recv (requester);
+    printf ("Received %s\n", string);
+    
+    free(string);
+    zmq_close (requester);
+    zmq_ctx_destroy (context);
+    return 0;
+}
+
+
+Serwer (w jezyku Ruby):
+
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'ffi-rzmq'
+
+request = ''
+pong = 'pong'
+
+context = ZMQ::Context.new(1)
+
+
+socket = context.socket(ZMQ::REP)
+socket.bind("tcp://*:5555")
+counter = 0
+
+while true
+    resp = "#{pong} #{counter}"
+    socket.recv_string(request)
+    socket.send_string(resp)
+    counter += 1
+end
+
+/// wydruk
+
+PL-MAC-C02XR105JHD2:b mj$ ./server.rb
+
+PL-MAC-C02XR105JHD2:b mj$ ./client
+Connecting to hello world server...
+Sending Ping...
+Received pong 0
+
+PL-MAC-C02XR105JHD2:b mj$ ./client
+Connecting to hello world server...
+Sending Ping...
+Received pong 1
+
+PL-MAC-C02XR105JHD2:b mj$ ./client
+Connecting to hello world server...
+Sending Ping...
+Received pong 2
+
+
+
+
+
