@@ -3,15 +3,18 @@
 <sprawozdanie przedmiot="ALR" temat="C">
 <imie_nazwisko>Marcin Jedynski</imie_nazwisko>
 <nr_indeksu>416084</nr_indeksu>
-<liczba_pkt> ???? </liczba_pkt>
+<liczba_pkt> 5.5 </liczba_pkt>
 <zadanie nr="41a" pkt="1"></zadanie>
 <zadanie nr="41b" pkt="1"></zadanie>
 <zadanie nr="42" pkt="1"></zadanie>
+<zadanie nr="43" pkt="1"></zadanie>
+<zadanie nr="44" pkt="1.5"></zadanie>
+
 
 </sprawozdanie>
 
 
-Zadanie 1 -------------------------------------
+Zadanie 41a -------------------------------------
 
 Klient (w jezyku Ruby):
 
@@ -317,3 +320,106 @@ Received request: Hello 3 (client id = 01626)
 Received request: Hello 5 (client id = 01626)
 Received request: Hello 7 (client id = 01626)
 Received request: Hello 9 (client id = 01626)
+
+
+Zadanie 44 -------------------------------------
+
+Broker posiada identyczny kod jak w zadaniu 43.
+
+Klient:
+
+#!/usr/bin/env ruby
+
+# author: Oleg Sidorov <4pcbr> i4pcbr@gmail.com
+# this code is licenced under the MIT/X11 licence.
+
+require 'rubygems'
+require 'ffi-rzmq'
+id = rand(1..10000)
+context = ZMQ::Context.new
+socket = context.socket(ZMQ::REQ)
+socket.connect('tcp://localhost:5559')
+
+string = "Generate random numbers (client id = %05i)" % id
+socket.send_string(string)
+puts "Sending string [#{string}]"
+loop do
+  socket.recv_string(message = '')
+  puts "Received: #{message}"
+  break if not socket.more_parts?
+end
+
+
+Serwer:
+
+#!/usr/bin/env ruby
+
+# author: Oleg Sidorov <4pcbr> i4pcbr@gmail.com
+# this code is licenced under the MIT/X11 licence.
+
+require 'rubygems'
+require 'ffi-rzmq'
+
+id = rand(1..10000)
+context = ZMQ::Context.new
+socket = context.socket(ZMQ::REP)
+socket.connect('tcp://localhost:5560')
+
+loop do
+  socket.recv_string(message = '')
+  puts "Received request: #{message}"
+  number = rand(1..20)
+  puts "Generating #{number} random numbers"
+
+  for i in (1..number) do
+    socket.send_string( "%i (worker id = %05i)" % [rand(1..10000), id], i == number ? 0 : ZMQ::SNDMORE )
+  end
+end
+
+
+
+/// wydruk
+
+PL-MAC-C02XR105JHD2:44 mj$ ruby msgqueue.rb
+
+
+PL-MAC-C02XR105JHD2:44 mj$ ruby rrworker.rb
+Received request: Generate random numbers (client id = 06199)
+Generating 17 random numbers
+Received request: Generate random numbers (client id = 01295)
+Generating 12 random numbers
+
+
+PL-MAC-C02XR105JHD2:44 mj$ ruby rrclient.rb
+Sending string [Generate random numbers (client id = 06199)]
+Received: 6274 (worker id = 03449)
+Received: 3888 (worker id = 03449)
+Received: 1862 (worker id = 03449)
+Received: 4038 (worker id = 03449)
+Received: 5856 (worker id = 03449)
+Received: 5739 (worker id = 03449)
+Received: 3692 (worker id = 03449)
+Received: 9509 (worker id = 03449)
+Received: 7657 (worker id = 03449)
+Received: 9664 (worker id = 03449)
+Received: 2144 (worker id = 03449)
+Received: 3403 (worker id = 03449)
+Received: 6507 (worker id = 03449)
+Received: 5548 (worker id = 03449)
+Received: 513 (worker id = 03449)
+Received: 3725 (worker id = 03449)
+Received: 5396 (worker id = 03449)
+PL-MAC-C02XR105JHD2:44 mj$ ruby rrclient.rb
+Sending string [Generate random numbers (client id = 01295)]
+Received: 321 (worker id = 03449)
+Received: 2230 (worker id = 03449)
+Received: 1196 (worker id = 03449)
+Received: 5901 (worker id = 03449)
+Received: 5528 (worker id = 03449)
+Received: 8477 (worker id = 03449)
+Received: 9625 (worker id = 03449)
+Received: 2060 (worker id = 03449)
+Received: 1476 (worker id = 03449)
+Received: 8040 (worker id = 03449)
+Received: 8561 (worker id = 03449)
+Received: 2912 (worker id = 03449)
