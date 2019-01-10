@@ -6,6 +6,8 @@
 <liczba_pkt> ???? </liczba_pkt>
 <zadanie nr="41a" pkt="1"></zadanie>
 <zadanie nr="41b" pkt="1"></zadanie>
+<zadanie nr="42" pkt="1"></zadanie>
+
 </sprawozdanie>
 
 
@@ -155,6 +157,163 @@ Sending Ping...
 Received pong 2
 
 
+Zadanie 42 -------------------------------------
+
+Klient (w jez Ruby):
+
+require 'Matrix'
+require 'ffi-rzmq'
+
+#wprowadzc macierz w formacie np Matrix[[4, 8], [12, 16]]
+
+context = ZMQ::Context.new(1)
+response = ZMQ::Message.create
+requester = context.socket(ZMQ::REQ)
+requester.connect("tcp://localhost:5555")
+puts "Wprowadz macierz:"
+matrix  = eval(gets())
+
+puts "Wprowadz mnoznik:"
+multiplier  = gets().to_i
+request = ZMQ::Message.new(Marshal.dump(multiplier))
+requester.sendmsg(request)
+requester.recvmsg(response)
+
+if Marshal.load(response.copy_out_string) == 'SET'
+    request = ZMQ::Message.new(Marshal.dump(matrix))
+    requester.sendmsg(request)
+    requester.recvmsg(response)
+    puts "zwrócona macierz #{Marshal.load(response.copy_out_string)}"
+else
+    puts 'Something went wrong'
+end
+
+Serwer (napisany w jez Ruby):
+
+require 'Matrix'
+require 'ffi-rzmq'
+
+context = ZMQ::Context.new(1)
+request = ZMQ::Message.create
+responder = context.socket(ZMQ::REP)
+responder.bind("tcp://*:5555")
+
+while true
+    multiplier = 0
+
+    responder.recvmsg(request)
+    multiplier = Marshal.load(request.copy_out_string)
+    puts "otrzymany mnoznik #{multiplier}"
+
+    reply = ZMQ::Message.new(Marshal.dump("SET"))
+    responder.sendmsg(reply)
+
+    responder.recvmsg(request)
+    matrix = Marshal.load(request.copy_out_string)
+    puts "otrzymana macierz #{matrix}"
+    matrix = matrix * multiplier
+
+    reply = ZMQ::Message.new(Marshal.dump(matrix))
+    responder.sendmsg(reply)
+end
 
 
+Zadanie 43 -------------------------------------
 
+Klient:
+
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'ffi-rzmq'
+id = rand(1..10000)
+context = ZMQ::Context.new
+socket = context.socket(ZMQ::REQ)
+socket.connect('tcp://localhost:5559')
+
+10.times do |request|
+  string = "Hello #{request} (client id = %05i)" % id
+  socket.send_string(string)
+  puts "Sending string [#{string}]"
+  socket.recv_string(message = '')
+  puts "Received reply #{request}[#{message}]"
+end
+
+
+Broker:
+
+#!/usr/bin/env ruby
+
+
+require 'rubygems'
+require 'ffi-rzmq'
+
+context = ZMQ::Context.new
+
+frontend = context.socket(ZMQ::ROUTER)
+frontend.bind('tcp://*:5559')
+
+backend = context.socket(ZMQ::DEALER)
+backend.bind('tcp://*:5560')
+
+poller = ZMQ::Device.new(frontend,backend)
+
+
+Serwer:
+
+#!/usr/bin/env ruby
+
+
+require 'rubygems'
+require 'ffi-rzmq'
+
+id = rand(1..10000)
+context = ZMQ::Context.new
+socket = context.socket(ZMQ::REP)
+socket.connect('tcp://localhost:5560')
+
+loop do
+  socket.recv_string(message = '')
+  puts "Received request: #{message}"
+  socket.send_string("World (worker id = %05i)" % id)
+end
+
+/// wydruk
+
+PL-MAC-C02XR105JHD2:43 mj$ ruby msgqueue.rb
+
+PL-MAC-C02XR105JHD2:43 mj$ ruby rrclient.rb
+Sending string [Hello 0 (client id = 01626)]
+Received reply 0[World (worker id = 07712)]
+Sending string [Hello 1 (client id = 01626)]
+Received reply 1[World (worker id = 04041)]
+Sending string [Hello 2 (client id = 01626)]
+Received reply 2[World (worker id = 07712)]
+Sending string [Hello 3 (client id = 01626)]
+Received reply 3[World (worker id = 04041)]
+Sending string [Hello 4 (client id = 01626)]
+Received reply 4[World (worker id = 07712)]
+Sending string [Hello 5 (client id = 01626)]
+Received reply 5[World (worker id = 04041)]
+Sending string [Hello 6 (client id = 01626)]
+Received reply 6[World (worker id = 07712)]
+Sending string [Hello 7 (client id = 01626)]
+Received reply 7[World (worker id = 04041)]
+Sending string [Hello 8 (client id = 01626)]
+Received reply 8[World (worker id = 07712)]
+Sending string [Hello 9 (client id = 01626)]
+Received reply 9[World (worker id = 04041)]
+
+PL-MAC-C02XR105JHD2:43 mj$ ruby rrworker.rb
+Received request: Hello 0 (client id = 01626)
+Received request: Hello 2 (client id = 01626)
+Received request: Hello 4 (client id = 01626)
+Received request: Hello 6 (client id = 01626)
+Received request: Hello 8 (client id = 01626)
+
+L-MAC-C02XR105JHD2:43 mj$ ruby rrworker.rb
+Received request: Hello 1 (client id = 01626)
+Received request: Hello 3 (client id = 01626)
+Received request: Hello 5 (client id = 01626)
+Received request: Hello 7 (client id = 01626)
+Received request: Hello 9 (client id = 01626)
