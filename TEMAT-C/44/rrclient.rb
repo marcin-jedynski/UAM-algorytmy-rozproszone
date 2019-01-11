@@ -13,7 +13,8 @@ socket.connect('tcp://localhost:5559')
 string = "Generate random numbers (client id = %05i)" % id
 socket.send_string(string)
 puts "Sending string [#{string}]"
-do
+loop do
   socket.recv_string(message = '')
-  puts "Received: #{request}[#{message}]"
-while socket.more_parts?
+  puts "Received: #{message}"
+  break if not socket.more_parts?
+end
