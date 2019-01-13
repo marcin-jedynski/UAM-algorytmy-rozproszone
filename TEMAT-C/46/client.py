@@ -20,12 +20,10 @@ def run():
     client = ctx.socket(zmq.REQ)
     authenticator_refresher = ctx.socket(zmq.PUSH)
     authenticator_refresher.connect("tcp://127.0.0.1:9010")
-    # shutil.copy(os.path.join(keys_dir,"id.key"),server_keys_authorized)
 
-    if len(sys.argv) == 2:
-        if sys.argv[1] == "--copy-id":
-            shutil.copy(os.path.join(keys_dir,"id.key"),server_keys_authorized)
-            authenticator_refresher.send(b"REFRESH")
+    if "--copy-id" in sys.argv :
+        shutil.copy(os.path.join(keys_dir,"id.key"),server_keys_authorized)
+        authenticator_refresher.send(b"REFRESH")
 
 
 
@@ -37,6 +35,7 @@ def run():
     client_public, client_secret = zmq.auth.load_certificate(client_secret_file)
     client.curve_secretkey = client_secret
     client.curve_publickey = client_public
+
     server_public_file = os.path.join(server_keys_dir, "id.key")
     server_public, _ = zmq.auth.load_certificate(server_public_file)
     # The client must know the server's public key to make a CURVE connection.
@@ -44,13 +43,11 @@ def run():
     client.connect('tcp://127.0.0.1:9000')
 
 
-    client.send(b"hi")
-    print("debug")
-
-    resp = client.recv()
-    print(resp)
-    if resp == b"hello":
-        logging.info("Ironhouse test OK")
+    client.send(data=b"hi",track=True)
+    if client.poll(1000):
+        resp = client.recv()
+        if resp == b"hello":
+            logging.info("Ironhouse test OK")
     else:
         logging.error("Ironhouse test FAIL")
 

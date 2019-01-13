@@ -51,8 +51,4 @@ proc qqq {} {
 
 vwait qqq
 
-
-
-
-
 exit
