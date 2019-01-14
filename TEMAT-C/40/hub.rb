@@ -3,7 +3,7 @@ require 'rubygems'
 require 'ffi-rzmq'
 
 response = ''
-statusUpdate = ''
+status_update = ''
 clientCounter = 0
 transsmissionCounter = 0
 filter = 'clear'
@@ -16,8 +16,8 @@ statuspoller = context.socket(ZMQ::PULL)
 poller = context.socket(ZMQ::POLL)
 
 listener.bind("tcp://*:5050")
-commander.bind("tcp://*5060")
-statuspoller.bind("tcp://*5070")
+commander.bind("tcp://*:5060")
+statuspoller.bind("tcp://*:5070")
 
 poller = ZMQ::Poller.new
 poller.register(statuspoller, ZMQ::POLLIN)
@@ -25,22 +25,26 @@ poller.register(statuspoller, ZMQ::POLLIN)
 while true
 
     listener.recv_string(response)
-    if response == "clear channel"
+    if response.include?("clear channel")
+        puts(response)
+        id = response.split()[2]
         transsmissionCounter += 1
-        statusHash[transsmissionCounter] = 0
-        commander.send_string(filter + " " + transsmissionCounter.to_s)
-        loop do
-            poller.poll(:blocking)
-            poller.readables.each do |socket|
-              if socket === statuspoller
-                socket.recv_string(statusUpdate)
-                if statusUpdate.include?(transsmissionCounter.to_s) then statusHash[transsmissionCounter] += 1 end
-              end
+        statusHash[transsmissionCounter] = false
+        if not transsmissionCounter == 1
+            commander.send_string(filter + " " + transsmissionCounter.to_s + " " + id)
+            loop do
+                poller.poll(:blocking)
+                poller.readables.each do |socket|
+                  if socket === statuspoller
+                    socket.recv_string(status_update)
+                    if status_update.include?(transsmissionCounter.to_s) then statusHash[transsmissionCounter] = true end
+                  end
+                end
+                if statusHash[transsmissionCounter] then break end
             end
-            if statusHash[transsmissionCounter] == clientCounter then break end
         end
         listener.send_string("channel clear")
-
+        puts("Transmission nr %d" % transsmissionCounter)
     elsif response == "register"
         clientCounter +=1 
         listener.send_string("registered")
